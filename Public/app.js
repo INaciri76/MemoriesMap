@@ -46,6 +46,7 @@ const storyProgress = document.getElementById('story-progress');
 const storyStage = document.getElementById('story-stage');
 const storyAddButton = document.getElementById('story-add');
 const storyAddFiles = document.getElementById('story-add-files');
+const storyDeleteButton = document.getElementById('story-delete');
 let souvenirActuel = null;
 let mediaIndexActuel = 0;
 let minuterieStory = null;
@@ -64,6 +65,7 @@ document.getElementById('story-prev').addEventListener('click', diapositivePrece
 document.getElementById('story-next').addEventListener('click', diapositiveSuivante);
 storyAddButton.addEventListener('click', () => storyAddFiles.click());
 storyAddFiles.addEventListener('change', ajouterMediasAuSouvenir);
+storyDeleteButton.addEventListener('click', supprimerSouvenirActuel);
 
 document.addEventListener('keydown', (e) => {
     if (modalOverlay.classList.contains('hidden')) return;
@@ -130,10 +132,13 @@ menuBtn.addEventListener('click', () => {
         return el;
     }
 
-    function ouvrirModalSouvenir(souvenir) {
+    function ouvrirModalSouvenir(souvenir, fichierId = null) {
         souvenirActuel = souvenir;
         souvenirActuel.files = Array.isArray(souvenir.files) ? souvenir.files : [];
-        mediaIndexActuel = 0;
+        const indexFichier = souvenir.files.findIndex(
+            (fichier) => String(fichier.id) === String(fichierId)
+        );
+        mediaIndexActuel = indexFichier >= 0 ? indexFichier : 0;
         modalTitle.textContent = souvenir.title;
         modalDescription.textContent = souvenir.description || '';
 
@@ -153,6 +158,30 @@ menuBtn.addEventListener('click', () => {
         modalFiles.querySelector('video')?.pause();
         souvenirActuel = null;
         modalOverlay.classList.add('hidden');
+    }
+
+    async function supprimerSouvenirActuel() {
+        if (!souvenirActuel) return;
+        if (!window.confirm(`Supprimer définitivement « ${souvenirActuel.title} » et ses médias ?`)) return;
+
+        storyDeleteButton.disabled = true;
+        try {
+            const reponse = await fetch(API_URL, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: souvenirActuel.id }),
+            });
+            const resultat = await reponse.json();
+            if (!reponse.ok) throw new Error(resultat.error || 'Impossible de supprimer ce souvenir.');
+
+            fermerModalSouvenir();
+            await chargerMarqueursSouvenirs();
+        } catch (erreur) {
+            alert(erreur.message || 'Impossible de supprimer ce souvenir.');
+            console.error(erreur);
+        } finally {
+            storyDeleteButton.disabled = false;
+        }
     }
 
     async function ajouterMediasAuSouvenir() {
@@ -306,56 +335,108 @@ menuBtn.addEventListener('click', () => {
         }
     }
 
-    // Cette fonction récupère les souvenirs depuis l'API et les affiche dans un tableau
+    // Cette fonction récupère les souvenirs et les range par date et type de média.
     async function afficherMesSouvenirs() {
         panelContent.textContent = 'Chargement...';
 
         try {
             const reponse = await fetch(API_URL);
+            if (!reponse.ok) throw new Error(`Réponse API : ${reponse.status}`);
             const json = await reponse.json();
-            const liste = json.memories;
+            const liste = json.memories || [];
 
             if (liste.length === 0) {
                 panelContent.textContent = "Aucun souvenir pour l'instant.";
                 return;
             }
 
-            const table = document.createElement('table');
-            table.innerHTML = '<thead><tr><th>Fichiers</th><th>Titre</th><th>Lieu</th><th>Date</th></tr></thead>';
-            const tbody = document.createElement('tbody');
+            panelContent.innerHTML = '';
+            const groupesParDate = new Map();
 
-            liste.forEach((s) => {
-                const ligne = document.createElement('tr');
+            liste.forEach((souvenir) => {
+                const cleDate = String(souvenir.created_at || '').slice(0, 10) || 'sans-date';
+                if (!groupesParDate.has(cleDate)) {
+                    groupesParDate.set(cleDate, { photos: [], videos: [] });
+                }
 
-                const cellFichiers = document.createElement('td');
-                const thumbs = document.createElement('div');
-                thumbs.className = 'thumbs';
-                s.files.slice(0, 3).forEach((f) => thumbs.appendChild(creerMiniature(f)));
-                cellFichiers.appendChild(thumbs);
-
-                const cellTitre = document.createElement('td');
-                cellTitre.textContent = s.title;
-
-                const cellLieu = document.createElement('td');
-                cellLieu.textContent = `${parseFloat(s.latitude).toFixed(3)}, ${parseFloat(s.longitude).toFixed(3)}`;
-
-                const cellDate = document.createElement('td');
-                cellDate.textContent = new Date(s.created_at.replace(' ', 'T')).toLocaleDateString('fr-FR');
-
-                ligne.append(cellFichiers, cellTitre, cellLieu, cellDate);
-
-                // Clic sur une ligne : ferme le panneau et envoie la carte sur le souvenir
-                ligne.addEventListener('click', () => {
-                    panel.classList.add('hidden');
-                    map.flyTo({ center: [parseFloat(s.longitude), parseFloat(s.latitude)], zoom: 15 });
+                const groupe = groupesParDate.get(cleDate);
+                (souvenir.files || []).forEach((fichier) => {
+                    const media = { souvenir, fichier };
+                    if (fichier.file_type === 'video') groupe.videos.push(media);
+                    else groupe.photos.push(media);
                 });
-
-                tbody.appendChild(ligne);
             });
 
-            table.appendChild(tbody);
-            panelContent.innerHTML = '';
-            panelContent.appendChild(table);
+            groupesParDate.forEach((groupe, cleDate) => {
+                const jour = document.createElement('section');
+                jour.className = 'memory-day';
+
+                const titreJour = document.createElement('h3');
+                titreJour.className = 'memory-day-title';
+                const date = cleDate === 'sans-date' ? null : new Date(`${cleDate}T00:00:00`);
+                titreJour.textContent = date && !Number.isNaN(date.getTime())
+                    ? date.toLocaleDateString('fr-FR', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                    })
+                    : 'Date inconnue';
+                jour.appendChild(titreJour);
+
+                [
+                    { titre: 'Photos', medias: groupe.photos, type: 'image' },
+                    { titre: 'Vidéos', medias: groupe.videos, type: 'video' },
+                ].forEach((categorie) => {
+                    const section = document.createElement('section');
+                    section.className = 'memory-media-section';
+
+                    const entete = document.createElement('div');
+                    entete.className = 'memory-section-heading';
+                    const titre = document.createElement('h4');
+                    titre.textContent = categorie.titre;
+                    const compteur = document.createElement('span');
+                    compteur.textContent = categorie.medias.length;
+                    entete.append(titre, compteur);
+                    section.appendChild(entete);
+
+                    if (categorie.medias.length === 0) {
+                        const vide = document.createElement('p');
+                        vide.className = 'memory-empty';
+                        vide.textContent = `Aucune ${categorie.type === 'video' ? 'vidéo' : 'photo'} ce jour-là`;
+                        section.appendChild(vide);
+                    } else {
+                        const grille = document.createElement('div');
+                        grille.className = 'memory-media-grid';
+
+                        categorie.medias.forEach(({ souvenir, fichier }) => {
+                            const carte = document.createElement('button');
+                            carte.type = 'button';
+                            carte.className = 'memory-media-card';
+                            carte.setAttribute('aria-label', `${souvenir.title}, ${categorie.titre.toLowerCase()}`);
+                            if (categorie.type === 'video') carte.classList.add('is-video');
+
+                            const miniature = creerMiniature(fichier);
+                            miniature.className = 'memory-media-thumb';
+                            carte.appendChild(miniature);
+
+                            carte.addEventListener('click', () => {
+                                panel.classList.add('hidden');
+                                map.flyTo({
+                                    center: [Number(souvenir.longitude), Number(souvenir.latitude)],
+                                    zoom: 15,
+                                });
+                                ouvrirModalSouvenir(souvenir, fichier.id);
+                            });
+
+                            grille.appendChild(carte);
+                        });
+
+                        section.appendChild(grille);
+                    }
+
+                    jour.appendChild(section);
+                });
+
+                panelContent.appendChild(jour);
+            });
         } catch (erreur) {
             panelContent.textContent = 'Impossible de charger les souvenirs.';
             console.error(erreur);

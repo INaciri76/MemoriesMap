@@ -88,9 +88,62 @@ if ($method === 'GET') {
 	respond(['memories' => $souvenirs]);
 }
 
-// Seules les méthodes GET et POST sont autorisées.
+if ($method === 'DELETE') {
+	$requete = json_decode((string) file_get_contents('php://input'), true);
+	$memoryId = filter_var($requete['id'] ?? null, FILTER_VALIDATE_INT);
+	if ($memoryId === false || $memoryId === null || $memoryId < 1) {
+		respond(['error' => 'L’identifiant du souvenir est invalide.'], 422);
+	}
+
+	try {
+		$pdo->beginTransaction();
+
+		$memoryCheck = $pdo->prepare('SELECT id FROM memories WHERE id = :memory_id FOR UPDATE');
+		$memoryCheck->execute([':memory_id' => $memoryId]);
+		if (!$memoryCheck->fetchColumn()) {
+			$pdo->rollBack();
+			respond(['error' => 'Ce souvenir est introuvable.'], 404);
+		}
+
+		$fileQuery = $pdo->prepare('SELECT file_path FROM memory_files WHERE memory_id = :memory_id');
+		$fileQuery->execute([':memory_id' => $memoryId]);
+		$filePaths = $fileQuery->fetchAll(PDO::FETCH_COLUMN);
+
+		$deleteStatement = $pdo->prepare('DELETE FROM memories WHERE id = :memory_id');
+		$deleteStatement->execute([':memory_id' => $memoryId]);
+		$pdo->commit();
+	} catch (Throwable $exception) {
+		if ($pdo->inTransaction()) {
+			$pdo->rollBack();
+		}
+
+		respond(['error' => 'Impossible de supprimer le souvenir.'], 500);
+	}
+
+	$uploadRoot = realpath(__DIR__ . '/../uploads');
+	$referencedFile = $pdo->prepare('SELECT COUNT(*) FROM memory_files WHERE file_path = :file_path');
+	foreach ($filePaths as $filePath) {
+		$fileOnDisk = realpath(__DIR__ . '/../' . ltrim((string) $filePath, '/\\'));
+		if ($uploadRoot === false || $fileOnDisk === false ||
+			!str_starts_with($fileOnDisk, $uploadRoot . DIRECTORY_SEPARATOR) || !is_file($fileOnDisk)) {
+			continue;
+		}
+
+		$referencedFile->execute([':file_path' => $filePath]);
+		if ((int) $referencedFile->fetchColumn() === 0) {
+			@unlink($fileOnDisk);
+		}
+	}
+
+	respond([
+		'message' => 'Souvenir supprimé avec succès.',
+		'id' => $memoryId,
+	]);
+}
+
+// Seules les méthodes GET, POST et DELETE sont autorisées.
 if ($method !== 'POST') {
-	header('Allow: GET, POST');
+	header('Allow: GET, POST, DELETE');
 	respond(['error' => 'Méthode HTTP non autorisée.'], 405);
 }
 

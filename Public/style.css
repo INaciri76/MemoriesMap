@@ -5,6 +5,7 @@
     --blush: #ffebeb;
     --ink: #45152d;
     --paper: #fff8fa;
+    --title-font: 'Manrope', 'DM Sans', sans-serif;
 }
 
 body {
@@ -73,6 +74,7 @@ body {
 }
 
 .menu-name {
+    font-family: var(--title-font);
     font-size: 14px;
     font-weight: 700;
     white-space: nowrap;
@@ -307,8 +309,9 @@ body {
 
 #modal-title {
     margin: 0 40px 6px 0;
-    font-size: 18px;
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: var(--title-font);
+    font-size: 19px;
+    font-weight: 700;
 }
 
 #modal-description {
@@ -333,10 +336,10 @@ body {
     font-size: 17px;
 }
 
+.story-delete,
 .story-add {
     position: absolute;
     top: 10px;
-    right: 52px;
     z-index: 5;
     display: grid;
     width: 34px;
@@ -351,6 +354,37 @@ body {
     font: inherit;
     font-size: 24px;
     line-height: 1;
+}
+
+.story-delete {
+    right: 94px;
+    border: 1px solid rgba(255, 87, 87, 0.3);
+    background: var(--blush);
+    color: var(--coral);
+}
+
+.story-add {
+    right: 52px;
+}
+
+.story-delete svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+}
+
+.story-delete:hover {
+    background: var(--coral);
+    color: white;
+}
+
+.story-delete:focus-visible {
+    outline: 3px solid var(--blush);
+    outline-offset: 2px;
 }
 
 .story-add:hover {
@@ -455,9 +489,9 @@ body {
 
 #memory-form h2 {
     margin: 0;
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: var(--title-font);
     font-size: 25px;
-    font-weight: 400;
+    font-weight: 700;
 }
 
 .form-field {
@@ -676,4 +710,163 @@ body {
 #modal-files img,
 #modal-files video {
     max-width: 100%;
+}
+
+#panel {
+    box-sizing: border-box;
+    padding: 72px 20px 32px;
+    background: var(--paper);
+}
+
+#panel-title,
+#panel-content {
+    width: min(960px, 100%);
+    margin-right: auto;
+    margin-left: auto;
+}
+
+#panel-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-family: var(--title-font);
+    font-size: 30px;
+    font-weight: 700;
+}
+
+#panel-close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 12;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 87, 87, 0.3);
+    border-radius: 50%;
+    background: white;
+    color: var(--pink);
+    cursor: pointer;
+    font: inherit;
+    font-size: 18px;
+}
+
+.memory-day {
+    padding: 18px 0 24px;
+    border-top: 1px solid rgba(255, 87, 87, 0.2);
+}
+
+.memory-day-title {
+    margin: 0 0 18px;
+    color: var(--ink);
+    font-family: var(--title-font);
+    font-size: 23px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.memory-media-section + .memory-media-section {
+    margin-top: 24px;
+}
+
+.memory-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.memory-section-heading h4 {
+    margin: 0;
+    color: var(--pink);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.memory-section-heading > span {
+    display: grid;
+    min-width: 22px;
+    height: 22px;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 11px;
+    background: var(--blush);
+    color: var(--coral);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.memory-media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 9px;
+}
+
+.memory-media-card {
+    position: relative;
+    display: block;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.memory-media-card:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.96);
+}
+
+.memory-media-card:focus-visible {
+    outline: 3px solid rgba(255, 0, 123, 0.24);
+    outline-offset: 2px;
+}
+
+.memory-media-thumb {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    border-radius: 4px;
+    background: var(--blush);
+    object-fit: contain;
+}
+
+.memory-media-card.is-video::after {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(69, 21, 45, 0.78);
+    color: white;
+    content: '▶';
+    font-size: 9px;
+}
+
+.memory-empty {
+    margin: 0;
+    color: #936c7c;
+    font-size: 12px;
+}
+
+@media (max-width: 480px) {
+    #panel {
+        padding: 68px 14px 24px;
+    }
+
+    #panel-title {
+        font-size: 26px;
+    }
+
+    .memory-media-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
