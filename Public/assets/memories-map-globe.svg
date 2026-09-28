@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Globe Memories Map</title>
+  <path d="M32 1 42 5 53 5 57 15 63 24 59 33 62 44 53 50 48 60 37 59 28 63 19 57 8 56 7 45 1 37 5 27 2 17 11 11 17 3 27 5Z" fill="#ff8585" opacity=".66"/>
+  <circle cx="32" cy="32" r="25" fill="#ffebeb" stroke="#ff5757" stroke-width="2"/>
+  <circle cx="32" cy="32" r="20.5" fill="none" stroke="#ff007b" stroke-width="1.35"/>
+  <ellipse cx="32" cy="32" rx="9" ry="20.5" fill="none" stroke="#ff5757" stroke-width="1.4"/>
+  <ellipse cx="32" cy="32" rx="16" ry="20.5" fill="none" stroke="#ff5757" stroke-width="1"/>
+  <path d="M12 26c6-2.7 13-4 20-4s14 1.3 20 4M12 38c6 2.7 13 4 20 4s14-1.3 20-4" fill="none" stroke="#ff5757" stroke-width="1.3"/>
+  <path d="M18 18.5c2.4-3 5.7-4.2 8.2-3.3l1.3 2.5-2.6 2.5.3 3-3 2.5-1.6 4.3 2.2 2.3 2.8.8 2.4 3.6-1.1 2.6-2.4-1.7-1.3-3.2-3.1-1.3-2.8-3.5-3.5-1.6-1.2-4.1 1.3-3.7Z" fill="#ff5757"/>
+  <path d="m34 31 4-3.1 5 .2 3.7 2.5-.7 3.5-2.6 2.1-1.1 4.4-3 4.5-2.1-3.4.7-4-2.4-2.4-2.5-1.6Z" fill="#ff5757"/>
+  <path d="m43 18 3.3-1.8 3.8 2.4 1.4 3.5-2.1 2.4-2.4-1.2-1.2-2.5Z" fill="#ff5757"/>
+  <path d="m12.8 36.5 3.5 1.3 2.1 3.6-.8 3.3-2.8-1.6-2.2-3.2Z" fill="#ff5757"/>
+  <g fill="#ff007b">
+    <circle cx="32" cy="5" r=".8"/><circle cx="55" cy="32" r=".8"/>
+    <circle cx="32" cy="59" r=".8"/><circle cx="9" cy="32" r=".8"/>
+  </g>
+</svg>

@@ -94,20 +94,42 @@ if ($method !== 'POST') {
 	respond(['error' => 'Méthode HTTP non autorisée.'], 405);
 }
 
-// Récupère les données envoyées par le formulaire.
-$title = trim((string) ($_POST['title'] ?? ''));
-$description = trim((string) ($_POST['description'] ?? ''));
-$latitude = filter_var($_POST['latitude'] ?? null, FILTER_VALIDATE_FLOAT);
-$longitude = filter_var($_POST['longitude'] ?? null, FILTER_VALIDATE_FLOAT);
+// Une action peut ajouter des médias à un souvenir au lieu d'en créer un nouveau.
+$action = (string) ($_POST['action'] ?? 'create');
+$memoryId = null;
+$title = '';
+$description = '';
+$latitude = false;
+$longitude = false;
 
-// Vérifie le titre et les coordonnées GPS.
-if ($title === '' || mb_strlen($title) > 255) {
-	respond(['error' => 'Le titre est obligatoire et doit contenir au maximum 255 caractères.'], 422);
-}
+if ($action === 'append_files') {
+	$memoryId = filter_var($_POST['memory_id'] ?? null, FILTER_VALIDATE_INT);
+	if ($memoryId === false || $memoryId === null || $memoryId < 1) {
+		respond(['error' => 'Le souvenir à compléter est invalide.'], 422);
+	}
 
-if ($latitude === false || $latitude < -90 || $latitude > 90 ||
-	$longitude === false || $longitude < -180 || $longitude > 180) {
-	respond(['error' => 'Les coordonnées GPS sont invalides.'], 422);
+	$memoryCheck = $pdo->prepare('SELECT id FROM memories WHERE id = :memory_id');
+	$memoryCheck->execute([':memory_id' => $memoryId]);
+	if (!$memoryCheck->fetchColumn()) {
+		respond(['error' => 'Le souvenir à compléter est introuvable.'], 404);
+	}
+} elseif ($action === 'create') {
+	// Récupère les données envoyées par le formulaire de création.
+	$title = trim((string) ($_POST['title'] ?? ''));
+	$description = trim((string) ($_POST['description'] ?? ''));
+	$latitude = filter_var($_POST['latitude'] ?? null, FILTER_VALIDATE_FLOAT);
+	$longitude = filter_var($_POST['longitude'] ?? null, FILTER_VALIDATE_FLOAT);
+
+	if ($title === '' || mb_strlen($title) > 255) {
+		respond(['error' => 'Le titre est obligatoire et doit contenir au maximum 255 caractères.'], 422);
+	}
+
+	if ($latitude === false || $latitude < -90 || $latitude > 90 ||
+		$longitude === false || $longitude < -180 || $longitude > 180) {
+		respond(['error' => 'Les coordonnées GPS sont invalides.'], 422);
+	}
+} else {
+	respond(['error' => 'Action non reconnue.'], 400);
 }
 
 // Prépare le dossier et les fichiers envoyés.
@@ -162,22 +184,36 @@ foreach ($fichiersEnvoyes as $index => $fichier) {
 	];
 }
 
+if ($action === 'append_files' && $fichiersEnregistres === []) {
+	respond(['error' => 'Sélectionnez au moins une photo ou une vidéo.'], 422);
+}
+
 try {
 	// Enregistre le souvenir et ses fichiers dans une seule transaction.
 	$pdo->beginTransaction();
 
-	$memoryStatement = $pdo->prepare(
-		'INSERT INTO memories (title, description, latitude, longitude)
-		 VALUES (:title, :description, :latitude, :longitude)'
-	);
-	$memoryStatement->execute([
-		':title' => $title,
-		':description' => $description !== '' ? $description : null,
-		':latitude' => $latitude,
-		':longitude' => $longitude,
-	]);
+	$positionDebut = 0;
+	if ($action === 'create') {
+		$memoryStatement = $pdo->prepare(
+			'INSERT INTO memories (title, description, latitude, longitude)
+			 VALUES (:title, :description, :latitude, :longitude)'
+		);
+		$memoryStatement->execute([
+			':title' => $title,
+			':description' => $description !== '' ? $description : null,
+			':latitude' => $latitude,
+			':longitude' => $longitude,
+		]);
 
-	$memoryId = (int) $pdo->lastInsertId();
+		$memoryId = (int) $pdo->lastInsertId();
+	} else {
+		$positionStatement = $pdo->prepare(
+			'SELECT COALESCE(MAX(position), -1) + 1 FROM memory_files WHERE memory_id = :memory_id'
+		);
+		$positionStatement->execute([':memory_id' => $memoryId]);
+		$positionDebut = (int) $positionStatement->fetchColumn();
+	}
+
 	$fileStatement = $pdo->prepare(
 		'INSERT INTO memory_files (memory_id, file_path, file_type, position)
 		 VALUES (:memory_id, :file_path, :file_type, :position)'
@@ -188,7 +224,7 @@ try {
 			':memory_id' => $memoryId,
 			':file_path' => $fichier['path'],
 			':file_type' => $fichier['type'],
-			':position' => $fichier['position'],
+			':position' => $positionDebut + $fichier['position'],
 		]);
 	}
 
@@ -206,6 +242,8 @@ try {
 }
 
 respond([
-	'message' => 'Souvenir créé avec succès.',
+	'message' => $action === 'create'
+		? 'Souvenir créé avec succès.'
+		: 'Médias ajoutés au souvenir avec succès.',
 	'id' => $memoryId,
-], 201);
+	], $action === 'create' ? 201 : 200);

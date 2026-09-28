@@ -44,11 +44,13 @@ const modalFiles = document.getElementById('modal-files');
 const modalDate = document.getElementById('story-date');
 const storyProgress = document.getElementById('story-progress');
 const storyStage = document.getElementById('story-stage');
+const storyAddButton = document.getElementById('story-add');
+const storyAddFiles = document.getElementById('story-add-files');
 let souvenirActuel = null;
 let mediaIndexActuel = 0;
 let minuterieStory = null;
 let debutGlissement = null;
-const DUREE_IMAGE_STORY = 6000;
+const DUREE_IMAGE_STORY = 8000;
 
 document.getElementById('modal-close').addEventListener('click', () => {
     fermerModalSouvenir();
@@ -60,6 +62,8 @@ modalOverlay.addEventListener('click', (e) => {
 
 document.getElementById('story-prev').addEventListener('click', diapositivePrecedente);
 document.getElementById('story-next').addEventListener('click', diapositiveSuivante);
+storyAddButton.addEventListener('click', () => storyAddFiles.click());
+storyAddFiles.addEventListener('change', ajouterMediasAuSouvenir);
 
 document.addEventListener('keydown', (e) => {
     if (modalOverlay.classList.contains('hidden')) return;
@@ -146,8 +150,51 @@ menuBtn.addEventListener('click', () => {
     function fermerModalSouvenir() {
         if (minuterieStory) clearTimeout(minuterieStory);
         minuterieStory = null;
+        modalFiles.querySelector('video')?.pause();
         souvenirActuel = null;
         modalOverlay.classList.add('hidden');
+    }
+
+    async function ajouterMediasAuSouvenir() {
+        if (!souvenirActuel || storyAddFiles.files.length === 0) return;
+
+        const memoryId = souvenirActuel.id;
+        const fichierActuelId = souvenirActuel.files[mediaIndexActuel]?.id;
+        const donnees = new FormData();
+        donnees.append('action', 'append_files');
+        donnees.append('memory_id', memoryId);
+        for (const fichier of storyAddFiles.files) {
+            donnees.append('files[]', fichier);
+        }
+
+        storyAddButton.disabled = true;
+        try {
+            const reponse = await fetch(API_URL, { method: 'POST', body: donnees });
+            const resultat = await reponse.json();
+            if (!reponse.ok) throw new Error(resultat.error || 'Impossible d’ajouter ces médias.');
+
+            const actualisation = await fetch(API_URL);
+            const json = await actualisation.json();
+            const souvenirMisAJour = (json.memories || []).find(
+                (souvenir) => String(souvenir.id) === String(memoryId)
+            );
+            if (!souvenirMisAJour) throw new Error('Le souvenir mis à jour est introuvable.');
+
+            if (souvenirActuel && String(souvenirActuel.id) === String(memoryId)) {
+                souvenirActuel = souvenirMisAJour;
+                const indexConserve = souvenirMisAJour.files.findIndex(
+                    (fichier) => String(fichier.id) === String(fichierActuelId)
+                );
+                mediaIndexActuel = indexConserve >= 0 ? indexConserve : 0;
+                afficherDiapositiveSouvenir();
+            }
+        } catch (erreur) {
+            alert(erreur.message || 'Impossible d’ajouter ces médias.');
+            console.error(erreur);
+        } finally {
+            storyAddButton.disabled = false;
+            storyAddFiles.value = '';
+        }
     }
 
     function afficherDiapositiveSouvenir() {
