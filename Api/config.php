@@ -1,3 +1,5 @@
+
+<?php 
 /**
  * config.php
  * 
@@ -9,7 +11,7 @@
  * @author Bosse
  * @date 27/09/2026
  */
-<?php
+
 $dbHost = 'localhost'; // Adresse du serveur de base de données
 $dbName = 'memoriesmap'; // Nom de la base de données   
 $dbUser = 'root'; // Nom d'utilisateur de la base de données

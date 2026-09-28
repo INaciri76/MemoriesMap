@@ -112,7 +112,7 @@ if ($latitude === false || $latitude < -90 || $latitude > 90 ||
 
 // Prépare le dossier et les fichiers envoyés.
 $fichiersEnvoyes = normaliserFichiers($_FILES['files'] ?? []);
-$dossierUpload = __DIR__ . '/../Uploads';
+$dossierUpload = __DIR__ . '/../uploads';
 $fichiersEnregistres = [];
 
 if (!is_dir($dossierUpload) && !mkdir($dossierUpload, 0755, true)) {
@@ -155,7 +155,7 @@ foreach ($fichiersEnvoyes as $index => $fichier) {
 	}
 
 	$fichiersEnregistres[] = [
-		'path' => 'Uploads/' . $nomFichier,
+		'path' => 'uploads/' . $nomFichier,
 		'type' => $allowedTypes[$typeMime],
 		'position' => $index,
 		'absolute_path' => $destination,
