@@ -1,19 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Memories Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap"
+        rel="stylesheet">
     <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
+
 <body>
     <div id="map" style="width: 100%; height: 100vh;"></div>
     <div id="menu">
-        <button type="button" id="menu-btn">☰ Menu</button>
+        <button type="button" id="menu-btn" aria-controls="menu-dropdown">
+            <span class="menu-mark" aria-hidden="true">M</span>
+            <span class="menu-name">Memories Map</span>
+            <span class="menu-toggle" aria-hidden="true">☰</span>
+        </button>
         <div id="menu-dropdown" class="hidden">
-            <button type="button" data-action="souvenirs">📍 Mes souvenirs</button>
-            <button type="button" data-action="parametres">⚙️ Paramètres</button>
+            <button type="button" data-action="souvenirs">Mes souvenirs</button>
+            <button type="button" data-action="parametres">Paramètres</button>
         </div>
     </div>
 
@@ -25,13 +36,31 @@
 
     <div id="form-souvenir" class="hidden">
         <form id="memory-form">
-            <h2>Nouveau souvenir</h2>
-            <input type="text" id="title" placeholder="Titre" required maxlength="255">
-            <textarea id="description" placeholder="Description (optionnel)"></textarea>
-            <input type="file" id="files" accept="image/*,video/*" multiple>
+            <div class="form-heading">
+                <span class="form-eyebrow">VOTRE MOMENT</span>
+                <h2>Nouveau souvenir</h2>
+            </div>
+            <div class="form-field">
+                <label for="title">Titre</label>
+                <input type="text" id="title" placeholder="Donnez un titre à ce moment" required maxlength="255">
+            </div>
+            <div class="form-field">
+                <label for="description">Description</label>
+                <textarea id="description" placeholder="Quelques mots pour vous en souvenir"></textarea>
+            </div>
+            <div class="form-field">
+                <label for="files">Photos et vidéos</label>
+                <input type="file" id="files" accept="image/*,video/*" multiple>
+                <label class="file-picker" for="files">
+                    <span>Ajouter des photos/vidéos</span>
+                    <span class="file-picker-mark" aria-hidden="true">+</span>
+                </label>
+            </div>
             <div id="preview"></div>
-            <button type="button" id="cancel-btn">Annuler</button>
-            <button type="submit">Enregistrer</button>
+            <div class="form-actions">
+                <button type="button" id="cancel-btn">Annuler</button>
+                <button type="submit">Enregistrer</button>
+            </div>
         </form>
     </div>
 
@@ -53,6 +82,7 @@
     </div>
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="app.js?v=4"></script>
-    
+
 </body>
+
 </html>
