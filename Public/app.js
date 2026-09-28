@@ -18,9 +18,16 @@ const map = new maplibregl.Map({
 // Boutons de zoom et de rotation
 map.addControl(new maplibregl.NavigationControl());
 
-// Au clic sur la carte, on affiche les coordonnées dans la console
+let marqueurSelection = null;
+
+// Au clic sur la carte, on enregistre les coordonnées et on ouvre le formulaire
 map.on('click', (e) => {
     console.log('Longitude :', e.lngLat.lng, '| Latitude :', e.lngLat.lat);
+    if (marqueurSelection) marqueurSelection.remove();
+    marqueurSelection = new maplibregl.Marker({ color: '#dc3545' })
+        .setLngLat(e.lngLat)
+        .addTo(map);
+    ouvrirFormulaire(e.lngLat.lng, e.lngLat.lat);
 });
 
 //---- MENU DEROULANT-----
@@ -130,3 +137,77 @@ menuBtn.addEventListener('click', () => {
             console.error(erreur);
         }
     }
+
+    
+// ------- FORMULAIRE DE CREATION DE SOUVENIR -------
+    const formSouvenir = document.getElementById('form-souvenir');
+    const form = document.getElementById('memory-form'); // formulaire de création de souvenir
+    const inputFiles = document.getElementById('files'); // input type="file" pour les fichiers
+    const preview = document.getElementById('preview'); // div pour l'aperçu des fichiers sélectionnés
+    let coordsClic = null; // coordonnées du point cliqué sur la carte
+
+    // Ouvre le formulaire et stocke les coordonnées du clic
+    function ouvrirFormulaire(lng, lat) {
+        coordsClic = { lng, lat };
+        // On vide le formulaire et l'aperçu
+        formSouvenir.classList.remove('hidden');
+    }
+    
+    // Ferme le formulaire et réinitialise les champs
+    function fermerFormulaire() {
+        formSouvenir.classList.add('hidden');
+        form.reset();
+        preview.innerHTML = '';
+        coordsClic = null;
+    }
+
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+        if (marqueurSelection) marqueurSelection.remove();
+        marqueurSelection = null;
+        fermerFormulaire();
+    });
+
+    //apercu des fichiers selectionnés
+    inputFiles.addEventListener('change', () => {
+    preview.innerHTML = '';
+    for (const file of inputFiles.files) {
+        const el = document.createElement(file.type.startsWith('video/') ? 'video' : 'img');
+        el.src = URL.createObjectURL(file);
+        preview.appendChild(el);
+    }
+    });
+
+    //renvoie vers l'API 
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Empêche le rechargement de la page
+
+        // On crée un FormData pour envoyer les données du formulaire
+        const data =new FormData(form);
+        data.append('title', document.getElementById('title').value);
+        data.append('description', document.getElementById('description').value);
+        data.append('latitude', coordsClic.lat);
+        data.append('longitude', coordsClic.lng);
+        for (const file of inputFiles.files) {
+            data.append('files[]', file);
+        }
+        try {
+            const reponse = await fetch(API_URL, { method : 'POST', body: data });
+            const json = await reponse.json();
+
+            // On vérifie si la réponse est OK
+            if (!reponse.ok){
+                alert(json.error || 'Erreur lors de la création du souvenir.');
+                return;
+            }
+
+            console.log('Souvenir créé avec succès :', json.id); 
+            marqueurSelection = null;
+            fermerFormulaire();
+
+        }catch(erreur) { // En cas d'erreur réseau ou autre
+            alert('Impossible de contacter le serveur.'); // On affiche un message d'erreur à l'utilisateur
+            console.error(erreur);
+        }
+    });
+        
+
