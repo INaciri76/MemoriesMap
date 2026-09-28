@@ -19,6 +19,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl());
 
 let marqueurSelection = null;
+const marqueursSouvenirs = [];
 
 // Au clic sur la carte, on enregistre les coordonnées et on ouvre le formulaire
 map.on('click', (e) => {
@@ -36,6 +37,49 @@ const menuDropdown = document.getElementById('menu-dropdown');
 const panel = document.getElementById('panel');
 const panelTitle = document.getElementById('panel-title');
 const panelContent = document.getElementById('panel-content');
+const modalOverlay = document.getElementById('modal-overlay');
+const modalTitle = document.getElementById('modal-title');
+const modalDescription = document.getElementById('modal-description');
+const modalFiles = document.getElementById('modal-files');
+const modalDate = document.getElementById('story-date');
+const storyProgress = document.getElementById('story-progress');
+const storyStage = document.getElementById('story-stage');
+let souvenirActuel = null;
+let mediaIndexActuel = 0;
+let minuterieStory = null;
+let debutGlissement = null;
+const DUREE_IMAGE_STORY = 6000;
+
+document.getElementById('modal-close').addEventListener('click', () => {
+    fermerModalSouvenir();
+});
+
+modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) fermerModalSouvenir();
+});
+
+document.getElementById('story-prev').addEventListener('click', diapositivePrecedente);
+document.getElementById('story-next').addEventListener('click', diapositiveSuivante);
+
+document.addEventListener('keydown', (e) => {
+    if (modalOverlay.classList.contains('hidden')) return;
+    if (e.key === 'Escape') fermerModalSouvenir();
+    if (e.key === 'ArrowLeft') diapositivePrecedente();
+    if (e.key === 'ArrowRight') diapositiveSuivante();
+});
+
+storyStage.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') debutGlissement = e.clientX;
+});
+
+storyStage.addEventListener('pointerup', (e) => {
+    if (debutGlissement === null) return;
+    const distance = e.clientX - debutGlissement;
+    debutGlissement = null;
+    if (Math.abs(distance) < 50) return;
+    if (distance < 0) diapositiveSuivante();
+    else diapositivePrecedente();
+});
 
 //---- OUVERTURE ET FERMETURE DU MENU DEROULANT-----
 menuBtn.addEventListener('click', () => {
@@ -80,6 +124,139 @@ menuBtn.addEventListener('click', () => {
             el.muted = true;
         }
         return el;
+    }
+
+    function ouvrirModalSouvenir(souvenir) {
+        souvenirActuel = souvenir;
+        souvenirActuel.files = Array.isArray(souvenir.files) ? souvenir.files : [];
+        mediaIndexActuel = 0;
+        modalTitle.textContent = souvenir.title;
+        modalDescription.textContent = souvenir.description || '';
+
+        const dateSouvenir = new Date(String(souvenir.created_at || '').replace(' ', 'T'));
+        modalDate.textContent = Number.isNaN(dateSouvenir.getTime())
+            ? ''
+            : dateSouvenir.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+        modalDate.dateTime = Number.isNaN(dateSouvenir.getTime()) ? '' : dateSouvenir.toISOString();
+
+        modalOverlay.classList.remove('hidden');
+        afficherDiapositiveSouvenir();
+    }
+
+    function fermerModalSouvenir() {
+        if (minuterieStory) clearTimeout(minuterieStory);
+        minuterieStory = null;
+        souvenirActuel = null;
+        modalOverlay.classList.add('hidden');
+    }
+
+    function afficherDiapositiveSouvenir() {
+        if (minuterieStory) clearTimeout(minuterieStory);
+        minuterieStory = null;
+
+        const fichiers = souvenirActuel?.files || [];
+        storyProgress.replaceChildren();
+        storyProgress.hidden = fichiers.length === 0;
+
+        fichiers.forEach((_, index) => {
+            const segment = document.createElement('div');
+            segment.className = 'story-segment';
+            if (index < mediaIndexActuel) segment.classList.add('is-complete');
+            if (index === mediaIndexActuel) segment.classList.add('is-active');
+            const progression = document.createElement('span');
+            segment.appendChild(progression);
+            storyProgress.appendChild(segment);
+        });
+
+        if (fichiers.length === 0) {
+            const vide = document.createElement('p');
+            vide.className = 'story-empty';
+            vide.textContent = 'Aucune photo ou vidéo pour ce souvenir.';
+            modalFiles.replaceChildren(vide);
+            return;
+        }
+
+        const fichier = fichiers[mediaIndexActuel];
+        const media = creerMiniature(fichier);
+        modalFiles.replaceChildren(media);
+
+        const progressionActive = storyProgress.querySelector('.is-active span');
+        if (media instanceof HTMLVideoElement) {
+            media.controls = true;
+            media.playsInline = true;
+            media.addEventListener('loadedmetadata', () => {
+                if (Number.isFinite(media.duration)) {
+                    progressionActive.style.animationDuration = `${media.duration}s`;
+                }
+            }, { once: true });
+            media.addEventListener('ended', diapositiveSuivante, { once: true });
+            media.play().catch(() => {});
+        } else {
+            progressionActive.style.animationDuration = `${DUREE_IMAGE_STORY}ms`;
+            minuterieStory = setTimeout(diapositiveSuivante, DUREE_IMAGE_STORY);
+        }
+    }
+
+    function diapositivePrecedente() {
+        if (!souvenirActuel || mediaIndexActuel === 0) return;
+        mediaIndexActuel--;
+        afficherDiapositiveSouvenir();
+    }
+
+    function diapositiveSuivante() {
+        if (!souvenirActuel) return;
+        if (mediaIndexActuel >= souvenirActuel.files.length - 1) {
+            fermerModalSouvenir();
+            return;
+        }
+        mediaIndexActuel++;
+        afficherDiapositiveSouvenir();
+    }
+
+    function creerMarqueurSouvenir(souvenir) {
+        const bulle = document.createElement('button');
+        bulle.type = 'button';
+        bulle.className = 'marker';
+        bulle.setAttribute('aria-label', `Ouvrir le souvenir : ${souvenir.title}`);
+        bulle.title = souvenir.title;
+
+        const premierFichier = souvenir.files[0];
+        if (premierFichier) {
+            const media = creerMiniature(premierFichier);
+            if (media instanceof HTMLVideoElement) media.muted = true;
+            bulle.appendChild(media);
+        } else {
+            const initiale = document.createElement('span');
+            initiale.textContent = souvenir.title.trim().charAt(0).toLocaleUpperCase() || '?';
+            bulle.appendChild(initiale);
+        }
+
+        bulle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ouvrirModalSouvenir(souvenir);
+        });
+
+        return new maplibregl.Marker({ element: bulle, anchor: 'bottom' })
+            .setLngLat([Number(souvenir.longitude), Number(souvenir.latitude)])
+            .addTo(map);
+    }
+
+    async function chargerMarqueursSouvenirs() {
+        try {
+            const reponse = await fetch(API_URL);
+            if (!reponse.ok) throw new Error(`Réponse API : ${reponse.status}`);
+
+            const json = await reponse.json();
+            marqueursSouvenirs.forEach((marqueur) => marqueur.remove());
+            marqueursSouvenirs.length = 0;
+
+            (json.memories || []).forEach((souvenir) => {
+                if (!Array.isArray(souvenir.files)) souvenir.files = [];
+                marqueursSouvenirs.push(creerMarqueurSouvenir(souvenir));
+            });
+        } catch (erreur) {
+            console.error('Impossible de charger les marqueurs des souvenirs.', erreur);
+        }
     }
 
     // Cette fonction récupère les souvenirs depuis l'API et les affiche dans un tableau
@@ -201,13 +378,17 @@ menuBtn.addEventListener('click', () => {
             }
 
             console.log('Souvenir créé avec succès :', json.id); 
+            if (marqueurSelection) marqueurSelection.remove();
             marqueurSelection = null;
             fermerFormulaire();
+            await chargerMarqueursSouvenirs();
 
         }catch(erreur) { // En cas d'erreur réseau ou autre
             alert('Impossible de contacter le serveur.'); // On affiche un message d'erreur à l'utilisateur
             console.error(erreur);
         }
     });
+
+    chargerMarqueursSouvenirs();
         
 
